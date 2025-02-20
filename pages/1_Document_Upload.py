@@ -44,7 +44,6 @@ def get_loader_for_filetype(file_path, file_type):
     return loaders.get(file_type.lower(), TextLoader)(file_path)
 
 def process_document(uploaded_file):
-    """アップロードされたドキュメントを処理する"""
     try:
         file_type = uploaded_file.name.split('.')[-1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_type}") as tmp_file:
@@ -66,13 +65,20 @@ def process_document(uploaded_file):
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )
         
-        vectorstore = Chroma.from_documents(splits, embeddings)
+        # 一時的なpersist_directoryを作成
+        persist_directory = tempfile.mkdtemp()
+        vectorstore = Chroma.from_documents(
+            documents=splits,
+            embedding=embeddings,
+            persist_directory=persist_directory
+        )
         
         # ドキュメント情報を保存
         st.session_state.processed_docs[uploaded_file.name] = {
             'vectorstore': vectorstore,
+            'persist_directory': persist_directory,  # 保存ディレクトリを記録
             'messages': [],
-            'summary': documents[0].page_content[:200] + "..."  # 簡単な要約として最初の200文字を使用
+            'summary': documents[0].page_content[:200] + "..."
         }
 
         # 一時ファイルの削除
